@@ -34,7 +34,13 @@ export const googleCallback = async (req: express.Request, res: express.Response
     }
 
     req.session.userSession = { userId: user.id };
-    res.redirect(process.env.CLIENT_REDIRECT_URL!);
+    req.session.save((err) => {
+      if (err) {
+        console.log('Session Error: ', err);
+        res.status(500).json({ message: 'Session not saved, Try again' });
+      }
+      res.redirect(process.env.CLIENT_REDIRECT_URL!);
+    });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: 'Internal Server Error' });
