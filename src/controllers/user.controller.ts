@@ -18,6 +18,7 @@ export const getUser = async (req: express.Request, res: express.Response) => {
       });
     }
 
+    res.set('Cache-Control', 'no-store');
     res.status(200).json(user);
   } catch (error) {
     console.log(error);
