@@ -1,5 +1,6 @@
 import express from 'express';
 import User from '../models/User.ts';
+import { exchangeGithubCodeForTokens, getGithubAuthUrl } from '../services/githubOAuth.services.ts';
 import {
   exchangeCodeForTokens,
   fetchGoogleUser,
@@ -45,6 +46,32 @@ export const googleCallback = async (req: express.Request, res: express.Response
     console.log(error);
     res.redirect(process.env.CLIENT_REDIRECT_URL!);
     res.status(500).json({ message: 'Failed To Google Login, Try Again' });
+  }
+};
+
+export const githubLogin = async (req: express.Request, res: express.Response) => {
+  try {
+    const url = getGithubAuthUrl();
+    res.redirect(url);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+export const githubCallback = async (req: express.Request, res: express.Response) => {
+  try {
+    const code = req.query.code;
+
+    if (typeof code !== 'string') {
+      return res.status(400).json({ message: 'Invalid or missing code' });
+    }
+    const tokens = await exchangeGithubCodeForTokens(code);
+
+    res.redirect(process.env.CLIENT_REDIRECT_URL!);
+  } catch (error) {
+    console.log('Error while github callback', error);
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 };
 
