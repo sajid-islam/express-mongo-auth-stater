@@ -3,15 +3,20 @@ export const getGoogleAuthUrl = () => {
 };
 
 export const exchangeCodeForTokens = async (code: string) => {
-  const res = await fetch(
-    `https://oauth2.googleapis.com/token?client_id=${process.env.GOOGLE_OAUTH_CLIENT_ID}&client_secret=${process.env.GOOGLE_OAUTH_CLIENT_SECRET}&code=${code}&grant_type=authorization_code&redirect_uri=${process.env.REDIRECT_URI}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_OAUTH_CLIENT_ID!,
+    client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET!,
+    code,
+    grant_type: 'authorization_code',
+    redirect_uri: process.env.REDIRECT_URI!,
+  });
+  const res = await fetch(`https://oauth2.googleapis.com/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
-  );
+    body: params.toString(),
+  });
 
   if (!res.ok) {
     const err = await res.text();
