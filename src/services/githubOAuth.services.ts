@@ -23,3 +23,14 @@ export const exchangeGithubCodeForTokens = async (code: string) => {
 
   return res.json();
 };
+
+export const fetchGithubUser = async (access_token: string) => {
+  const res = await fetch('https://api.github.com/user', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${access_token}`,
+    },
+  });
+
+  return res.json();
+};

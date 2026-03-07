@@ -1,6 +1,10 @@
 import express from 'express';
 import User from '../models/User.ts';
-import { exchangeGithubCodeForTokens, getGithubAuthUrl } from '../services/githubOAuth.services.ts';
+import {
+  exchangeGithubCodeForTokens,
+  fetchGithubUser,
+  getGithubAuthUrl,
+} from '../services/githubOAuth.services.ts';
 import {
   exchangeCodeForTokens,
   fetchGoogleUser,
@@ -21,7 +25,10 @@ export const googleCallback = async (req: express.Request, res: express.Response
     const tokens = await exchangeCodeForTokens(code);
     const user = await fetchGoogleUser(tokens.access_token);
 
-    const existingUser = await User.findOne({ userId: user.id });
+    const existingUser = await User.findOne({ email: user.email });
+    if (existingUser && existingUser?.provider !== 'google') {
+      return res.redirect(`${process.env.CLIENT_REDIRECT_URL}?error=provider_mismatch`);
+    }
     if (!existingUser) {
       const newUser = new User({
         userId: user.id,
@@ -44,8 +51,7 @@ export const googleCallback = async (req: express.Request, res: express.Response
     });
   } catch (error) {
     console.log(error);
-    res.redirect(process.env.CLIENT_REDIRECT_URL!);
-    res.status(500).json({ message: 'Failed To Google Login, Try Again' });
+    return res.redirect(`${process.env.CLIENT_REDIRECT_URL}?error=google_login_failed`);
   }
 };
 
@@ -67,11 +73,35 @@ export const githubCallback = async (req: express.Request, res: express.Response
       return res.status(400).json({ message: 'Invalid or missing code' });
     }
     const tokens = await exchangeGithubCodeForTokens(code);
+    const user = await fetchGithubUser(tokens.access_token);
 
-    res.redirect(process.env.CLIENT_REDIRECT_URL!);
+    const existingUser = await User.findOne({ email: user.email });
+    if (existingUser && existingUser?.provider !== 'github') {
+      return res.redirect(`${process.env.CLIENT_REDIRECT_URL}?error=provider_mismatch`);
+    }
+    if (!existingUser) {
+      const newUser = new User({
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        photo_url: user.avatar_url,
+        provider: 'github',
+        verified_email: true,
+      });
+      await newUser.save();
+    }
+    req.session.userSession = { userId: user.id };
+    req.session.save((err) => {
+      if (err) {
+        console.log('Session Error: ', err);
+        res.status(500).json({ message: 'Session not saved, Try again' });
+      }
+
+      res.redirect(process.env.CLIENT_REDIRECT_URL!);
+    });
   } catch (error) {
     console.log('Error while github callback', error);
-    res.status(500).json({ message: 'Internal Server Error' });
+    return res.redirect(`${process.env.CLIENT_REDIRECT_URL}?error=github_login_failed`);
   }
 };
 
